@@ -1,0 +1,57 @@
+{
+  "_readme": [
+    "Gentle spoken prompts at set times of day. Edit this file to change them;",
+    "nothing here is hardcoded in the program.",
+    "",
+    "  time     24-hour, 'HH:MM'. Local clock.",
+    "  kind     'meal', 'activity', 'medication_checkin', or 'custom'.",
+    "  enabled  false switches one off without deleting it.",
+    "  message  what is said. Keep it to one or two short sentences, warm and",
+    "           plain - the same way the assistant talks the rest of the time.",
+    "",
+    "MEDICATION entries are deliberately different. The assistant must never",
+    "tell anyone to take anything - that is medical instruction, which this",
+    "device does not do. A medication entry is only ever a check-in that offers",
+    "to involve a carer, and its wording is generated rather than taken from",
+    "this file so it cannot be edited into an instruction. Whatever the person",
+    "answers is ordinary conversation and is NOT recorded as proof they took",
+    "anything, because there is no way to know that."
+  ],
+  "version": 1,
+  "routines": [
+    {
+      "id": "breakfast",
+      "time": "08:00",
+      "kind": "meal",
+      "enabled": true,
+      "message": "Morning. It's about the time you usually have breakfast."
+    },
+    {
+      "id": "lunch",
+      "time": "12:30",
+      "kind": "meal",
+      "enabled": true,
+      "message": "It's around lunchtime. Fancy something to eat?"
+    },
+    {
+      "id": "afternoon_stretch",
+      "time": "15:00",
+      "kind": "activity",
+      "enabled": false,
+      "message": "Nice afternoon. A little walk or a sit by the window might be lovely."
+    },
+    {
+      "id": "dinner",
+      "time": "18:00",
+      "kind": "meal",
+      "enabled": true,
+      "message": "It's about dinner time now."
+    },
+    {
+      "id": "medication_checkin",
+      "time": "21:00",
+      "kind": "medication_checkin",
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+# Environments
+.venv/
+venv/
+# Previous machine's virtualenv, kept only as a fallback during the migration.
+.venv_broken/
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+
+# Personal data collected at runtime. None of this may ever be committed:
+# face encodings, voice prints, a caregiver's contact note, and a log of the
+# moments someone asked for help all belong to the person being supported, not
+# to the repository.
+visual_guidance_assistant/known_faces/*.jpg
+visual_guidance_assistant/known_faces/encodings.pkl
+visual_guidance_assistant/known_faces/profiles.json
+visual_guidance_assistant/alerts/
+visual_guidance_assistant/memory/layered_memory.json
+visual_guidance_assistant/memory/memory_data.json
+visual_guidance_assistant/debug/
+
+# Per-day routine firing state, not configuration
+visual_guidance_assistant/config/routines_state.json

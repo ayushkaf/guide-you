@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------
+# INSTALL: `pip install -r requirements.txt` ALONE IS NOT ENOUGH on Windows.
+# Run these three commands, in this order, from the project root:
+#
+#   python -m pip install -r requirements.txt
+#   python -m pip install --no-deps face_recognition
+#   python -m pip install Click Pillow
+#
+# Why face_recognition needs --no-deps:
+#   face_recognition declares a plain `dlib>=19.7` dependency. Building real
+#   dlib on Windows needs CMake + Visual C++ Build Tools; without them pip fails
+#   AND rolls back every other package in the same command (that is how a torch
+#   + opencv install silently ends up with nothing installed).
+#   dlib-bin below is the prebuilt wheel and provides the importable `dlib`
+#   module, which is what matters at runtime — but pip's resolver does not treat
+#   it as satisfying the `dlib` requirement, so the dependency has to be
+#   bypassed with --no-deps. Click and Pillow are face_recognition's remaining
+#   real dependencies and are installed explicitly in step 3.
+# ---------------------------------------------------------------------------
+
+# Prebuilt dlib wheel — no compiler required. Must be installed before
+# face_recognition is imported.
+dlib-bin>=20.0.1
+face_recognition_models>=0.3.0
+
+opencv-python>=4.8.0
+numpy>=1.24.0
+ultralytics>=8.0.0
+torch>=2.0.0
+torchvision>=0.15.0
+pyttsx3>=2.90
+PyYAML>=6.0
+SpeechRecognition>=3.10.0
+sounddevice>=0.4.6
+anthropic>=0.110.0
+
+# face_recognition's own dependencies, listed here so step 1 covers them.
+Click
+Pillow
+
+# Used by list_cameras.py to map DirectShow device NAMES to the integer indices
+# OpenCV addresses cameras by. Diagnostic only — the app itself does not import it.
+pygrabber>=0.2
+
+# pkg_resources was removed in setuptools 81; face_recognition_models imports it
+# at load time, so anything newer breaks face recognition at startup.
+setuptools<81

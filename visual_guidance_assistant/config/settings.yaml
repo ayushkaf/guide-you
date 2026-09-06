@@ -1,0 +1,299 @@
+model:
+  enabled: true
+  model_path: "yolo11n.pt"
+  confidence_threshold: 0.35
+  # The square YOLO letterboxes each frame into before inference. This, not the
+  # camera resolution, is what sets the compute cost — which is why dropping the
+  # camera from 720p to 480p barely changed inference time on its own.
+  # Measured at 480p with face recognition running:
+  #     imgsz 640 (library default) -> 6.1-6.8 fps
+  #     imgsz 480                   -> 11.7-16.6 fps
+  #     imgsz 320                   -> DETECTS NOTHING; a person in clear view
+  #                                    returned no detections at all. Do not use.
+  imgsz: 480
+  allowed_classes:
+    - person
+    - bicycle
+    - car
+    - motorcycle
+    - airplane
+    - bus
+    - train
+    - truck
+    - boat
+    - traffic light
+    - fire hydrant
+    - stop sign
+    - parking meter
+    - bench
+    - bird
+    - cat
+    - dog
+    - horse
+    - sheep
+    - cow
+    - elephant
+    - bear
+    - zebra
+    - giraffe
+    - backpack
+    - umbrella
+    - handbag
+    - tie
+    - suitcase
+    - frisbee
+    - skis
+    - snowboard
+    - sports ball
+    - kite
+    - baseball bat
+    - baseball glove
+    - skateboard
+    - surfboard
+    - tennis racket
+    - bottle
+    - wine glass
+    - cup
+    - fork
+    - knife
+    - spoon
+    - bowl
+    - banana
+    - apple
+    - sandwich
+    - orange
+    - broccoli
+    - carrot
+    - hot dog
+    - pizza
+    - donut
+    - cake
+    - chair
+    - couch
+    - potted plant
+    - bed
+    - dining table
+    - toilet
+    - tv
+    - laptop
+    - mouse
+    - remote
+    - keyboard
+    - cell phone
+    - microwave
+    - oven
+    - toaster
+    - sink
+    - refrigerator
+    - book
+    - clock
+    - vase
+    - scissors
+    - teddy bear
+    - hair drier
+    - toothbrush
+
+camera:
+  # Which physical camera to use. This is a DirectShow device index, not a name.
+  # Run `python visual_guidance_assistant/list_cameras.py` to see which index
+  # maps to which device before changing this.
+  # 0 = 'HD User Facing' (built-in, tops out at 1280x720)
+  # 1 = 'Web Camera'     (external USB, can do 1920x1080)
+  index: 1
+  # 480p, and this is NOT a compromise — it is better on every axis measured.
+  #
+  # This webcam rejects MJPG (uncompressed YUY2 only), so higher resolutions are
+  # capped by raw USB bandwidth:
+  #     1920x1080 -> 4.6 fps     1280x720 -> 8.8 fps     640x480 -> 29.7 fps
+  #
+  # 720p was chosen earlier on the assumption that more pixels meant better face
+  # recognition. Measured, the opposite is true — YuNet on the same scene:
+  #     720p:  located  0/12 faces,  351 ms per detection
+  #     480p:  located 12/12 faces,   28 ms per detection
+  # A 640x480 frame sits much closer to YuNet's native 320x320 input, so it
+  # needs far less rescaling and detects far more reliably. Matching distances
+  # at 480p were 0.519-0.569, comfortably inside the 0.6 tolerance.
+  #
+  # So 480p gives a 3.4x smoother feed (worst stall 433ms -> 68ms) AND better
+  # face recognition. Nothing is traded away.
+  width: 640
+  height: 480
+  # Pixel format requested BEFORE the resolution. MJPG is what makes 1080p
+  # reachable over USB — uncompressed YUY2 exceeds USB 2.0 bandwidth at high
+  # resolutions, so the driver silently falls back to a smaller mode. Set to an
+  # empty string to let the driver pick.
+  fourcc: "MJPG"
+  fps_limit: 30
+  # Only every Nth captured frame is handed to YOLO. Applied once, in
+  # CameraCapture — DetectionProcessor deliberately does not skip again.
+  # Send every Nth captured frame to YOLO. This is the single biggest CPU dial
+  # in the app. Measured with the camera at 480p/30fps:
+  #
+  #     skip   YOLO passes/sec   CPU cores burned
+  #        2               7.4                4.2
+  #        4               7.4                5.7    (YOLO saturated, cannot
+  #        8               3.7                4.7     keep up below skip=4)
+  #       15               1.8                3.2
+  #
+  # For comparison, the camera and display loop alone use 0.2 cores at 480p —
+  # YOLO is essentially the entire CPU load of this app, on a 4-core laptop
+  # with no GPU. Starving it is what leaves room for the camera, microphone
+  # and speech to stay responsive.
+  #
+  # 12 gives roughly 2-3 detections a second. That is ample here: detections
+  # feed the scene description and locate a person's bounding box for face
+  # recognition, neither of which needs 30Hz. Claude also sees the actual
+  # image now, so the YOLO label list matters far less than it once did.
+  detection_skip: 12
+
+speech:
+  enabled: true
+  voice: "Microsoft Zira"
+  # Azure Neural TTS voice, used only when AZURE_SPEECH_KEY/REGION are set
+  # in .env and reachable (see speech/azure_tts_client.py) — otherwise the
+  # local pyttsx3 voice above is used and this is ignored. Warm, calm,
+  # natural default; browse more at https://speech.microsoft.com/portal/voicegallery
+  azure_voice: "en-US-JennyNeural"
+  rate: 150
+  cooldown_objects: 20
+  cooldown_scene: 45
+  cooldown_movement: 10
+  cooldown_enter_leave: 8
+  # Seconds to wait after speaking before the mic resumes listening, so the
+  # assistant doesn't hear (and reply to) its own voice.
+  post_speech_cooldown: 0.6
+
+ui:
+  dark_mode: true
+  show_fps: true
+
+storage:
+  enabled: false
+  mode: "none"
+  retention_days: 0
+  output_path: "recordings/"
+
+voice_input:
+  enabled: true
+  language: en-US
+  timeout: 5.0
+  phrase_time_limit: 5.0
+  # MME index 1 = 'Microphone Array (Intel Smart Sound)', the laptop's
+  # built-in beamforming array. Chosen by measurement (list_audio_devices.py),
+  # not by name.
+  #
+  # THIS SHIFTED ONCE ALREADY, and it is exactly what broke voice input for a
+  # full session before anyone noticed: this device used to sit at index 2,
+  # with the USB webcam's own mic at index 1 ahead of it. Some USB/audio
+  # change moved or removed the webcam mic's enumeration entirely, so the
+  # array slid down to index 1 — and the app's fallback logic, finding index 2
+  # no longer usable, silently substituted 'Microsoft Sound Mapper - Input', a
+  # VIRTUAL routing device, not a real microphone. Every recording during that
+  # window was genuine, clearly-spoken, correctly captured audio — fed to the
+  # wrong device. Both Google STT and a locally-run Whisper model failed
+  # identically on the same misrouted audio, which is what exposed that this
+  # was never a speech-recognition problem at all.
+  #
+  # If voice input ever goes strange again: run
+  #   .venv\Scripts\python.exe visual_guidance_assistant\list_audio_devices.py
+  # BEFORE suspecting the STT engine. A device that silently falls back to a
+  # virtual device gives no error, no crash, and no unmistakable symptom — it
+  # just quietly listens to the wrong thing.
+  device_index: 1
+  min_peak_amplitude: 0.008
+  speech_start_rms: 0.008
+  # Writes every captured utterance to debug/last_capture.wav. Useful when
+  # diagnosing the microphone, but it means the last thing the person said is
+  # sitting unencrypted on disk. Off by default; turn on only while debugging.
+  debug_save_wav: false
+
+  # How long the person must be quiet before capture stops and processing
+  # begins. Pure added latency on every turn — but shortening it too far cuts
+  # people off mid-sentence, and having to start a sentence again is genuinely
+  # distressing for someone already struggling to find words.
+  #
+  # Measured: the longest pause INSIDE synthesised speech was 0.50s (slow pace).
+  # 0.8 keeps a 0.30s margin over that. 0.7 leaves only 0.20s, and 0.5 would
+  # start clipping. Was an undocumented 1.0s default.
+  #
+  # Those samples are synthesised voices, which pause LESS than a real person
+  # who is tired or searching for a word. If you are ever cut off mid-sentence,
+  # put this back to 1.0 — 0.2s of latency is a far smaller cost than being
+  # interrupted.
+  silence_stop_seconds: 0.8
+
+dialogue:
+  enabled: true
+
+face_recognition:
+  # Which detector LOCATES faces. dlib still does the encoding either way.
+  #   yunet - small ONNX model run through OpenCV. Far more tolerant of head
+  #           angle. Needs models/face_detection_yunet_2023mar.onnx, installed
+  #           once by fetch_models.py. If that file is missing the app prints
+  #           one warning and falls back to hog automatically.
+  #   hog   - dlib's built-in detector. No model file, but on this camera it
+  #           located a face in only 1 frame out of 10.
+  detector: "yunet"
+
+  # How long a confident identification is held through frames where no face
+  # can be found. No detector finds a face every frame; without this, one
+  # missed frame drops the person to "unknown" and the assistant stops knowing
+  # who it is talking to mid-conversation. A frame that positively identifies
+  # someone else is always believed immediately, so this cannot keep asserting
+  # the wrong person.
+  sticky_seconds: 60
+
+  # Run face recognition on its own low-priority thread rather than on the
+  # detection thread, and how often. dlib's encoding saturates every core, so
+  # wherever it runs it briefly starves the camera thread and the picture
+  # hitches.
+  #
+  # Measured with recognition forced to run, 480p, 20s runs:
+  #             where      every    fps   worst stall   stalls >200ms
+  #   baseline  inline      1.0s   12.0        2260ms         8
+  #             inline      2.5s   16.6        3168ms         4
+  #             threaded    1.0s   16.6        1684ms         8
+  #   APPLIED   threaded    2.5s   21.4        1468ms         4
+  #
+  # The two levers do different jobs and stack:
+  #   - interval_seconds controls HOW MANY stalls (count tracks encodes 1:1)
+  #   - threaded controls HOW MUCH each one costs (+38% fps at the same rate)
+  #
+  # Both sit on top of sticky_seconds and the cache, which are unchanged. A
+  # 2.5s interval is invisible to the person because identity is held for 60s
+  # across the gaps — this stacks with those fixes, it does not replace them.
+  threaded: true
+  interval_seconds: 2.5
+
+  # Azure Face PersonGroup used only when AZURE_FACE_KEY/ENDPOINT are set in
+  # .env and reachable (see recognition/azure_face_client.py) — otherwise
+  # local YuNet+dlib (the detector setting above) is used and this is
+  # ignored. Created automatically on first successful startup if it
+  # doesn't already exist.
+  azure_person_group_id: "guideyou-people"
+
+care:
+  # Where this device physically is, e.g. "home, in Ashfield" or "Rosewood House".
+  # Used ONLY to answer "where am I". Leave blank and the assistant will say it
+  # cannot tell rather than guessing — it has no way to know a location, and a
+  # confidently wrong answer is worse than none for someone relying on it to
+  # stay oriented. A caregiver should set this.
+  home_location: ""
+
+  # Emergency contact numbers — HARD CONSTRAINT: these are entered and
+  # confirmed by a caregiver/admin ONLY (by voice command, or by hand here),
+  # exactly like home_location above. The assistant NEVER auto-fetches,
+  # geolocation-looks-up, or guesses one of these, under any circumstance. If
+  # asked and the field is blank, it says so honestly rather than inventing a
+  # number — a wrong emergency number stated with confidence is a real safety
+  # risk, not a convenience trade-off. See safety/emergency_contacts.py.
+  #
+  # A genuine emergency ("I've fallen") is unaffected by these fields — that
+  # path notifies the caregiver and logs it; it never reads a number aloud or
+  # attempts to call anyone. These are answered only for a calm, direct
+  # question like "what's the hospital's number".
+  emergency:
+    local_emergency_number: ""
+    nearest_hospital_name: ""
+    nearest_hospital_phone: ""
+    police_non_emergency_number: ""
